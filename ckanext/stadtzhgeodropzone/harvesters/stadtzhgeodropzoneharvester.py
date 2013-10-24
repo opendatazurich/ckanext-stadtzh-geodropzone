@@ -127,8 +127,62 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
     #         log.exception(e)
     #         return []
 
+    def _remove_hidden_files(self, file_list):
+        '''
+        Removes dotfiles from a list of files
+        '''
+        cleaned_file_list = []
+        for file in file_list:
+            if not file.startswith('.'):
+                cleaned_file_list.append(file)
+        return cleaned_file_list
+
+
+    def _generate_tags(self, dataset_node):
+        '''
+        Given a dataset node it extracts the tags and returns them in an array
+        '''
+        if dataset_node.find('keywords').text is not None:
+            return dataset_node.find('keywords').text.split(', ')
+        else:
+            return []
+
+
+    def _generate_resources_dict_array(self, dataset):
+        '''
+        Given a dataset folder, it'll return an array of resource metadata
+        '''
+        resources = []
+        resource_files = self._remove_hidden_files(os.listdir(os.path.join(self.DROPZONE_PATH, dataset)))
+        log.debug(resource_files)
+
+        for resource_file in resource_files:
+            if resource_file == u'meta.xml':
+                break
+            elif resource_file == u'link.xml':
+                with open(os.path.join(self.DROPZONE_PATH, dataset, resource_file), 'r') as links_xml:
+                    parser = etree.XMLParser(encoding='utf-8')
+                    links = etree.fromstring(links_xml.read(), parser=parser).findall('link')
+                    for link in links:
+                        resources.append({
+                            'url': link.find('url').text,
+                            'name': link.find('lable').text,
+                            'format': link.find('type').text
+                        })
+            else:
+                resources.append({
+                    'url': 'http://example.org/' + resource_file,
+                    'name': resource_file,
+                    'type': resource_file.split('.')[-1]
+                })
+
+        return resources
+
 
     def info(self):
+        '''
+        Return some general info about this harvester
+        '''
         return {
             'name': 'stadtzhgeodropzone',
             'title': 'Stadtzhgeodropzone',
@@ -143,7 +197,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         ids = []
 
         # list directories in geodropzone folder
-        datasets = os.listdir(self.DROPZONE_PATH)
+        datasets = self._remove_hidden_files(os.listdir(self.DROPZONE_PATH))
 
         # foreach -> meta.xml -> create entry
         for dataset in datasets:
@@ -151,26 +205,30 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 parser = etree.XMLParser(encoding='utf-8')
                 # for data_collection in etree.fromstring(meta_xml.read(), parser=parser).find('datensammlung'):
 
-                log.debug(dataset)
+                #log.debug(dataset)
 
                 contents = meta_xml.read()
-                log.debug(contents)
+                #log.debug(contents)
 
-                data_collection = etree.fromstring(contents, parser=parser)
-                log.debug(data_collection)
+                #data_collection = etree.fromstring(contents, parser=parser)
+                # log.debug(data_collection)
 
-                log.debug(data_collection.find('datensatz').text)
+                # log.debug(data_collection.find('datensatz').text)
+
+                dataset_node = etree.fromstring(contents, parser=parser).find('datensatz')
 
                 metadata = {
                     'datasetID': dataset,
-                    'title': data_collection.find('datensatz').find('titel').text,
-                    'notes': data_collection.find('datensatz').find('beschreibung').text,
-                    'author': 'foobar',
-                    'maintainer': 'hagsdkfjhag',
-                    'maintainer_email': 'jahdfk@jsdgfj.cs',
-                    'license_id': 'ahdfgkajshdf',
-                    'tags': [],
-                    'groups': []
+                    'title': dataset_node.find('titel').text,
+                    'url': None, # the source url for that dataset
+                    'notes': dataset_node.find('beschreibung').text,
+                    'author': dataset_node.find('quelle').text,
+                    'maintainer': "Open Data Zürich",
+                    'maintainer_email': "opendata@zuerich.ch",
+                    'license_id': 'to_be_filled',
+                    "tags": self._generate_tags(dataset_node),
+                    'groups': [],
+                    "resources": self._generate_resources_dict_array(dataset + "/DEFAULT"),
                 }
 
                 obj = HarvestObject(
@@ -183,10 +241,6 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 ids.append(obj.id)
 
         return ids
-
-                # log.debug(de_rows)
-        
-
 
         # parser = etree.XMLParser(encoding='utf-8')
         # for package in etree.fromstring(metadata_file.data, parser=parser):
