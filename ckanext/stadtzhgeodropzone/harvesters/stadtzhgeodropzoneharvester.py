@@ -167,7 +167,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                         resources.append({
                             'url': link.find('url').text,
                             'name': link.find('lable').text,
-                            'format': link.find('type').text
+                            'format': link.find('type').text,
+                            'resource_type': 'api'
                         })
             else:
                 resources.append({
