@@ -174,10 +174,47 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 resources.append({
                     'url': 'http://example.org/' + resource_file,
                     'name': resource_file,
-                    'type': resource_file.split('.')[-1]
+                    'format': resource_file.split('.')[-1],
+                    'resource_type': 'file'
                 })
 
         return resources
+
+
+    def _generate_attribute_notes(self, attributlist_node):
+        '''
+        Compose the attribute notes for all the given attributes
+        '''
+        response = u'##Attribute  \n'
+        for attribut in attributlist_node:
+            response += u'**' + attribut.find('sprechenderfeldname').text + u'**  \n'
+            if attribut.find('feldbeschreibung').text != None:
+                response += attribut.find('feldbeschreibung').text + u'  \n'
+        return response
+
+    def _generate_notes(self, dataset_node):
+        '''
+        Compose the notes given the elements available within the node
+        '''
+        response = u''
+        if dataset_node.find('beschreibung').text != None:
+            response += u'**Details**  \n' + dataset_node.find('beschreibung').text + u'  \n'
+        response += u'**Urheber**  \n' + u'  \n'
+        response += u'**Erstmalige Veröffentlichung**  \n' + u'  \n'
+        if dataset_node.find('zeitraum').text != None:
+            response += u'**Zeitraum**  \n' + dataset_node.find('zeitraum').text + u'  \n'
+        response += u'**Aktualisierungsintervall**  \n' + u'  \n'
+        if dataset_node.find('aktuelle_version').text != None:
+            response += u'**Aktuelle Version**  \n' + dataset_node.find('aktuelle_version').text + u'  \n'
+        response += u'**Aktualisierungsdatum**  \n' + 'insert the current date here' + u'  \n'
+        response += u'**Datentyp**  \n' + u'  \n'
+        if dataset_node.find('quelle').text != None:
+            response += u'**Quelle**  \n' + dataset_node.find('quelle').text + u'  \n'
+        if dataset_node.find('raeumliche_beziehung').text != None:
+            response += u'**Räumliche Beziehung**  \n' + dataset_node.find('raeumliche_beziehung').text + u'  \n'
+
+        response += self._generate_attribute_notes(dataset_node.find('attributliste'))
+        return response
 
 
     def info(self):
@@ -204,32 +241,21 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         for dataset in datasets:
             with open(os.path.join(self.DROPZONE_PATH, dataset, 'DEFAULT/meta.xml'), 'r') as meta_xml:
                 parser = etree.XMLParser(encoding='utf-8')
-                # for data_collection in etree.fromstring(meta_xml.read(), parser=parser).find('datensammlung'):
-
-                #log.debug(dataset)
-
-                contents = meta_xml.read()
-                #log.debug(contents)
-
-                #data_collection = etree.fromstring(contents, parser=parser)
-                # log.debug(data_collection)
-
-                # log.debug(data_collection.find('datensatz').text)
-
-                dataset_node = etree.fromstring(contents, parser=parser).find('datensatz')
+                dataset_node = etree.fromstring(meta_xml.read(), parser=parser).find('datensatz')
 
                 metadata = {
                     'datasetID': dataset,
                     'title': dataset_node.find('titel').text,
                     'url': None, # the source url for that dataset
-                    'notes': dataset_node.find('beschreibung').text,
+                    # 'notes': dataset_node.find('beschreibung').text,
+                    'notes': self._generate_notes(dataset_node),
                     'author': dataset_node.find('quelle').text,
-                    'maintainer': "Open Data Zürich",
-                    'maintainer_email': "opendata@zuerich.ch",
+                    'maintainer': 'Open Data Zürich',
+                    'maintainer_email': 'opendata@zuerich.ch',
                     'license_id': 'to_be_filled',
-                    "tags": self._generate_tags(dataset_node),
-                    'groups': [],
-                    "resources": self._generate_resources_dict_array(dataset + "/DEFAULT"),
+                    'license_url': 'to_be_filled',
+                    'tags': self._generate_tags(dataset_node),
+                    'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                 }
 
                 obj = HarvestObject(
