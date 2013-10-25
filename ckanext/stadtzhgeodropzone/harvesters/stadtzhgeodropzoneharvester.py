@@ -8,6 +8,7 @@ from ckan import model
 from ckan.model import Session, Package
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
+from ckan.lib.munge import munge_title_to_name
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, \
                                     HarvestObjectError
@@ -365,7 +366,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         try:
             package_dict = json.loads(harvest_object.content)
             package_dict['id'] = harvest_object.guid
-            package_dict['name'] = self._gen_new_name(package_dict[u'datasetID'])
+            package_dict['name'] = munge_title_to_name(package_dict[u'datasetID'])
 
             user = model.User.get(self.config['user'])
             context = {
@@ -378,8 +379,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             try:
                 data_dict = {
                     'permission': 'edit_group',
-                    'id': self._gen_new_name(self.ORGANIZATION['de']),
-                    'name': self._gen_new_name(self.ORGANIZATION['de']),
+                    'id': munge_title_to_name(self.ORGANIZATION['de']),
+                    'name': munge_title_to_name(self.ORGANIZATION['de']),
                     'title': self.ORGANIZATION['de']
                 }
                 package_dict['owner_org'] = get_action('organization_show')(context, data_dict)['id']
