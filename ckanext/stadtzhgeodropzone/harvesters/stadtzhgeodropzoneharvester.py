@@ -36,8 +36,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         'user': u'harvest'
     }
 
-    DROPZONE_PATH = u'/vagrant/vagrant/templates/default/GEO'
-
+    DROPZONE_PATH = u'/usr/lib/ckan/GEO'
 
     # def _guess_format(self, file_name):
     #     '''
