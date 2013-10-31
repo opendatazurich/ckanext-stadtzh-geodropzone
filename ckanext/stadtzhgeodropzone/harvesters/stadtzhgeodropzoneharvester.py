@@ -3,6 +3,8 @@
 import os
 from lxml import etree
 
+from ofs import get_impl
+from pylons import config
 from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
@@ -31,6 +33,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         'en': u'en_Stadt Zürich',
     }
     LANG_CODES = ['de', 'fr', 'it', 'en']
+    BUCKET = config.get('ckan.storage.bucket', 'default')
+    CKAN_SITE_URL = config.get('ckan.site_url', 'http://stadtzh.lo')
 
     config = {
         'user': u'harvest'
@@ -38,6 +42,46 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
 
     DROPZONE_PATH = '/usr/lib/ckan/GEO'
 
+    # ---
+    # COPIED FROM THE CKAN STORAGE CONTROLLER
+    # ---
+
+    def create_pairtree_marker(self, folder):
+        """ Creates the pairtree marker for tests if it doesn't exist """
+        if not folder[:-1] == '/':
+            folder = folder + '/'
+
+        directory = os.path.dirname(folder)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        target = os.path.join(directory, 'pairtree_version0_1')
+        if os.path.exists(target):
+            return
+
+        open(target, 'wb').close()
+
+
+    def get_ofs(self):
+        """Return a configured instance of the appropriate OFS driver.
+        """
+        storage_backend = config['ofs.impl']
+        kw = {}
+        for k, v in config.items():
+            if not k.startswith('ofs.') or k == 'ofs.impl':
+                continue
+            kw[k[4:]] = v
+
+        # Make sure we have created the marker file to avoid pairtree issues
+        if storage_backend == 'pairtree' and 'storage_dir' in kw:
+            self.create_pairtree_marker(kw['storage_dir'])
+
+        ofs = get_impl(storage_backend)(**kw)
+        return ofs
+
+    # ---
+    # END COPY
+    # ---
 
     def _remove_hidden_files(self, file_list):
         '''
@@ -65,7 +109,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         Given a dataset folder, it'll return an array of resource metadata
         '''
         resources = []
-        resource_files = self._remove_hidden_files(os.listdir(os.path.join(self.DROPZONE_PATH, dataset)))
+        resource_files = self._remove_hidden_files((f for f in os.listdir(os.path.join(self.DROPZONE_PATH, dataset)) 
+            if os.path.isfile(os.path.join(self.DROPZONE_PATH, dataset, f))))
         log.debug(resource_files)
 
         # for resource_file in resource_files:
@@ -84,7 +129,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                             })
             else:
                 resources.append({
-                    'url': 'http://example.org/' + resource_file,
+                    # 'url': '', # will be filled in the import stage
                     'name': resource_file,
                     'format': resource_file.split('.')[-1],
                     'resource_type': 'file'
@@ -235,6 +280,20 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             # Insert or update the package
             package = model.Package.get(package_dict['id'])
             pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
+
+            # Move file around and make sure it's in the file-store
+            for r in package_dict['resources']:
+                if r['resource_type'] == 'file':
+                    label = package_dict['datasetID'] + '/' + r['name']
+                    file_contents = ''
+                    with open(os.path.join(self.DROPZONE_PATH, package_dict['datasetID'], 'DEFAULT', r['name'])) as contents:
+                        file_contents = contents.read()
+                    params = {
+                        'filename-original': 'the original file name',
+                        'uploaded-by': self.config['user']
+                    }
+                    r['url'] = self.CKAN_SITE_URL + '/storage/f/' + label
+                    self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
 
             result = self._create_or_update_package(package_dict, harvest_object)
             Session.commit()
