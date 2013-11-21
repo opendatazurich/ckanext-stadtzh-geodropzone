@@ -1,6 +1,7 @@
 #coding: utf-8
 
 import os
+import time
 from lxml import etree
 
 from ofs import get_impl
@@ -149,7 +150,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 response += attribut.find('feldbeschreibung').text + u'  \n'
         return response
 
-    def _generate_notes(self, dataset_node):
+    def _generate_notes(self, dataset_node, dataset_name):
         '''
         Compose the notes given the elements available within the node
         '''
@@ -163,7 +164,14 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         response += u'**Aktualisierungsintervall**  \n' + u'  \n'
         if dataset_node.find('aktuelle_version').text != None:
             response += u'**Aktuelle Version**  \n' + dataset_node.find('aktuelle_version').text + u'  \n'
-        response += u'**Aktualisierungsdatum**  \n' + 'insert the current date here' + u'  \n'
+
+        resources_path = os.path.join(self.DROPZONE_PATH, dataset_name, 'DEFAULT')
+        resource_files = [f for f in os.listdir(resources_path) if not (f != 'meta.xml' or f.endswith(".txt"))]
+        log.debug('dataset_name: ' + dataset_name)
+        log.debug(resource_files) # debugging
+        (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(os.path.join(resources_path, resource_files[0]))
+
+        response += u'**Aktualisierungsdatum**  \n' + str(time.strftime('%d.%m.%Y, %H:%M Uhr', time.localtime(mtime))) + u'  \n'
         response += u'**Datentyp**  \n' + u'  \n'
         if dataset_node.find('quelle').text != None:
             response += u'**Quelle**  \n' + dataset_node.find('quelle').text + u'  \n'
@@ -205,7 +213,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'title': dataset_node.find('titel').text,
                     'url': None, # the source url for that dataset
                     # 'notes': dataset_node.find('beschreibung').text,
-                    'notes': self._generate_notes(dataset_node),
+                    'notes': self._generate_notes(dataset_node, dataset),
                     'author': dataset_node.find('quelle').text,
                     'maintainer': 'Open Data Zürich',
                     'maintainer_email': 'opendata@zuerich.ch',
