@@ -121,7 +121,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     parser = etree.XMLParser(encoding='utf-8')
                     links = etree.fromstring(links_xml.read(), parser=parser).findall('link')
                     for link in links:
-                        if link.find('url').text != "":
+                        if link.find('url').text != "" and link.find('url').text != None:
                             resources.append({
                                 'url': link.find('url').text,
                                 'name': link.find('lable').text,
