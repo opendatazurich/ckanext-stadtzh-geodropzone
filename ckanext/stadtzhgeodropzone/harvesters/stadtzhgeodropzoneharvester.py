@@ -150,33 +150,58 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 response += attribut.find('feldbeschreibung').text + u'  \n'
         return response
 
+    def _node_exists_and_is_nonempty(self, dataset_node, element_name):
+        element = dataset_node.find(element_name)
+        if element == None:
+            log.debug('TODO: send a message to SSZ, telling them Georg has to fix the meta.xml (OGDZH-29)')
+            return None
+        elif element.text == None:
+            return None
+        else:
+            return element.text
+
     def _generate_notes(self, dataset_node, dataset_name):
         '''
         Compose the notes given the elements available within the node
         '''
         response = u''
-        if dataset_node.find('beschreibung').text != None:
-            response += u'**Details**  \n' + dataset_node.find('beschreibung').text + u'  \n'
+
+        # details
+        element_text = self._node_exists_and_is_nonempty(dataset_node, 'beschreibung')
+        if element_text != None:
+            response += u'**Details**  \n' + element_text + u'  \n'
+
         response += u'**Urheber**  \n' + u'  \n'
         response += u'**Erstmalige Veröffentlichung**  \n' + u'  \n'
-        if dataset_node.find('zeitraum').text != None:
-            response += u'**Zeitraum**  \n' + dataset_node.find('zeitraum').text + u'  \n'
+
+        # zeitraum
+        element_text = self._node_exists_and_is_nonempty(dataset_node, 'zeitraum')
+        if element_text != None:
+            response += u'**Zeitraum**  \n' + element_text + u'  \n'
+
         response += u'**Aktualisierungsintervall**  \n' + u'  \n'
-        if dataset_node.find('aktuelle_version').text != None:
-            response += u'**Aktuelle Version**  \n' + dataset_node.find('aktuelle_version').text + u'  \n'
+
+        # aktuelle_version
+        element_text = self._node_exists_and_is_nonempty(dataset_node, 'aktuelle_version')
+        if element_text != None:
+            response += u'**Aktuelle Version**  \n' + element_text + u'  \n'
 
         resources_path = os.path.join(self.DROPZONE_PATH, dataset_name, 'DEFAULT')
         resource_files = [f for f in os.listdir(resources_path) if not (f != 'meta.xml' or f.endswith(".txt"))]
-        log.debug('dataset_name: ' + dataset_name)
-        log.debug(resource_files) # debugging
         (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(os.path.join(resources_path, resource_files[0]))
-
         response += u'**Aktualisierungsdatum**  \n' + str(time.strftime('%d.%m.%Y, %H:%M Uhr', time.localtime(mtime))) + u'  \n'
+
         response += u'**Datentyp**  \n' + u'  \n'
-        if dataset_node.find('quelle').text != None:
-            response += u'**Quelle**  \n' + dataset_node.find('quelle').text + u'  \n'
-        if dataset_node.find('raeumliche_beziehung').text != None:
-            response += u'**Räumliche Beziehung**  \n' + dataset_node.find('raeumliche_beziehung').text + u'  \n'
+
+        # quelle
+        element_text = self._node_exists_and_is_nonempty(dataset_node, 'quelle')
+        if element_text != None:
+            response += u'**Quelle**  \n' + element_text + u'  \n'
+
+        # raeumliche_beziehung
+        element_text = self._node_exists_and_is_nonempty(dataset_node, 'raeumliche_beziehung')
+        if element_text != None:
+            response += u'**Räumliche Beziehung**  \n' + element_text + u'  \n'
 
         response += self._generate_attribute_notes(dataset_node.find('attributliste'))
         return response
