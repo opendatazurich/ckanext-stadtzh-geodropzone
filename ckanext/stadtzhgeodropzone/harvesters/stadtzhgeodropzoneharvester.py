@@ -285,9 +285,14 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 organization = get_action('organization_create')(context, data_dict)
                 package_dict['owner_org'] = organization['id']
 
-            # Insert or update the package
+            # Insert the package only when it's not already in CKAN, but move the resources anyway.
             package = model.Package.get(package_dict['id'])
-            pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
+            if package: # package has already been imported.
+                # create a diff between this new metadata set and the one from yesterday.
+                # send the diff to SSZ
+                log.debug('TODO: generating the diff for the dataset: ' + package_dict['id'])
+            else: # package does not exist, therefore create it.
+                pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
 
             # Move file around and make sure it's in the file-store
             for r in package_dict['resources']:
@@ -303,8 +308,9 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     r['url'] = self.CKAN_SITE_URL + '/storage/f/' + label
                     self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
 
-            result = self._create_or_update_package(package_dict, harvest_object)
-            Session.commit()
+            if package == None:
+                result = self._create_or_update_package(package_dict, harvest_object)
+                Session.commit()
 
         except Exception, e:
             log.exception(e)
