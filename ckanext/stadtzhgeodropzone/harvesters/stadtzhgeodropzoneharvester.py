@@ -333,7 +333,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     r['url'] = self.CKAN_SITE_URL + '/storage/f/' + label
                     self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
 
-            if package == None:
+            if not package:
                 result = self._create_or_update_package(package_dict, harvest_object)
                 Session.commit()
 
