@@ -3,6 +3,7 @@
 import os
 import time
 from lxml import etree
+from pprint import pprint
 
 from ofs import get_impl
 from pylons import config
@@ -254,14 +255,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
                         ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
-                        # ('dateFirstPublished', ''),
-                        # ('dateLastUpdated', ''),
                         ('version', self._get(dataset_node, 'aktuelle_version')),
-                        # ('updateInterval', '')
-                        # ('timeRange', ''),
-                        # ('dataType', ''),
-                        # ('legalInformation', ''),
-                        # ('comments', ''),
                         ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
                     ]
                 }
