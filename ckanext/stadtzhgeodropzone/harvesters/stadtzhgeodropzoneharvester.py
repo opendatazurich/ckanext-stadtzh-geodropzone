@@ -160,6 +160,13 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         else:
             return element.text
 
+    def _get(self, node, name):
+        element = self._node_exists_and_is_nonempty(node, name)
+        if element:
+            return element
+        else:
+            return ''
+
     def _generate_notes(self, dataset_node, dataset_name):
         '''
         Compose the notes given the elements available within the node
@@ -237,8 +244,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'datasetID': dataset,
                     'title': dataset_node.find('titel').text,
                     'url': None, # the source url for that dataset
-                    # 'notes': dataset_node.find('beschreibung').text,
-                    'notes': self._generate_notes(dataset_node, dataset),
+                    'notes': dataset_node.find('beschreibung').text,
                     'author': dataset_node.find('quelle').text,
                     'maintainer': 'Open Data Zürich',
                     'maintainer_email': 'opendata@zuerich.ch',
@@ -246,6 +252,18 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_url': 'to_be_filled',
                     'tags': self._generate_tags(dataset_node),
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
+                    'extras': [
+                        ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
+                        # ('dateFirstPublished', ''),
+                        # ('dateLastUpdated', ''),
+                        ('version', self._get(dataset_node, 'aktuelle_version')),
+                        # ('updateInterval', '')
+                        # ('timeRange', ''),
+                        # ('dataType', ''),
+                        # ('legalInformation', ''),
+                        # ('comments', ''),
+                        ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
+                    ]
                 }
 
                 obj = HarvestObject(
@@ -341,3 +359,18 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             log.exception(e)
 
         return True
+
+    def _json_encode_attributes(self, properties):
+        _dict = {}
+        for key, value in properties:
+            if value:
+                _dict[key] = value
+
+        return json.dumps(_dict)
+
+    def _get_attributes(self, node):
+        attribut_list = node.find('attributliste')
+        attributes = []
+        for attribut in attribut_list:
+            attributes.append((attribut.find('sprechenderfeldname').text, attribut.find('feldbeschreibung').text))
+        return attributes
