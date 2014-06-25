@@ -2,6 +2,8 @@
 
 import os
 import time
+import datetime
+import difflib
 from lxml import etree
 from pprint import pprint
 
@@ -43,6 +45,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
     }
 
     DROPZONE_PATH = '/usr/lib/ckan/GEO'
+    METADATA_PATH = '/usr/lib/ckan/METADATA'
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
@@ -197,7 +200,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         resources_path = os.path.join(self.DROPZONE_PATH, dataset_name, 'DEFAULT')
         resource_files = [f for f in os.listdir(resources_path) if not (f != 'meta.xml' or f.endswith(".txt"))]
         (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(os.path.join(resources_path, resource_files[0]))
-        response += u'**Aktualisierungsdatum**  \n' + str(time.strftime('%d.%m.%Y, %H:%M Uhr', time.localtime(mtime))) + u'  \n'
+        response += u'**Aktualisierungsdatum**  \n' + time.strftime('%d.%m.%Y, %H:%M Uhr', time.localtime(mtime)) + u'  \n'
 
         response += u'**Datentyp**  \n' + u'  \n'
 
@@ -268,6 +271,10 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 obj.save()
                 log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                 ids.append(obj.id)
+                
+                with open(os.path.join(self.METADATA_PATH, dataset, 'metadata-' + str(datetime.date.today())), 'w') as meta_json:
+                    meta_json.write(json.dumps(metadata, sort_keys=True, indent=4, separators=(',', ': ')))
+                    log.debug('json created')
 
         return ids
 
@@ -327,7 +334,25 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             if package: # package has already been imported.
                 # create a diff between this new metadata set and the one from yesterday.
                 # send the diff to SSZ
-                log.debug('TODO: generating the diff for the dataset: ' + package_dict['id'])
+                
+                today = datetime.date.today()
+                delta = datetime.timedelta(days=-1)
+                yesterday = today + delta
+                new_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(today))
+                prev_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(yesterday))
+                diff_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'diff-' + str(today))
+                
+                if os.path.isfile(new_metadata_path) and os.path.isfile(prev_metadata_path):
+                    with open(prev_metadata_path) as prev_metadata:
+                        with open(new_metadata_path) as new_metadata:
+                            with open(diff_path, 'w') as diff:
+                                d = difflib.HtmlDiff()
+                                diff.write(d.make_file(prev_metadata, new_metadata))
+                    log.debug('Metadata diff generated for the dataset: ' + package_dict['id'])
+                    os.remove(prev_metadata_path)
+                else:
+                    log.debug('Metadata JSON missing for the dataset: ' + package_dict['id'])
+                
             else: # package does not exist, therefore create it.
                 pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
 
