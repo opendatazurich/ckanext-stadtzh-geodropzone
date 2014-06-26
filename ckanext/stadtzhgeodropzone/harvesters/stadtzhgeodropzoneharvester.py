@@ -258,7 +258,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                         ('version', self._get(dataset_node, 'aktuelle_version')),
                         ('timeRange', self._get(dataset_node, 'zeitraum')),
                         ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
-                    ]
+                    ],
+                    'related': self._get_related(dataset_node)
                 }
 
                 obj = HarvestObject(
@@ -348,6 +349,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
 
             if not package:
                 result = self._create_or_update_package(package_dict, harvest_object)
+                self._related_create_or_update(package_dict['name'], package_dict['related'])
                 Session.commit()
 
         except Exception, e:
@@ -369,3 +371,38 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         for attribut in attribut_list:
             attributes.append((attribut.find('sprechenderfeldname').text, attribut.find('feldbeschreibung').text))
         return attributes
+
+    def _get_related(self, xpath):
+        related = []
+        app_list = xpath.find('anwendungen')
+        for app in app_list:
+            related.append({
+                'title': self._get(app, 'beschreibung'),
+                'type': 'Applikation',
+                'url': self._get(app, 'url')
+            })
+        return related
+
+    def _related_create_or_update(self, dataset_id, data):
+        context = {
+            'model': model,
+            'session': Session,
+            'user': self.config['user']
+        }
+
+        related_items = {}
+        data_dict = {
+            'id': dataset_id
+        }
+        for related in action.get.related_list(context, data_dict):
+            related_items[related['url']] = related
+
+        for entry in data:
+            entry['dataset_id'] = dataset_id
+            if entry['url'] in related_items.keys():
+                entry = dict(related_items[entry['url']].items() + entry.items())
+                log.debug('Updating related %s' % entry)
+                action.update.related_update(context, entry)
+            else:
+                log.debug('Creating related %s' % entry)
+                action.create.related_create(context, entry)
