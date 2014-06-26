@@ -256,6 +256,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'extras': [
                         ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
                         ('version', self._get(dataset_node, 'aktuelle_version')),
+                        ('timeRange', self._get(dataset_node, 'zeitraum')),
                         ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
                     ]
                 }
