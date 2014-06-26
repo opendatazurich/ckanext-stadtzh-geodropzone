@@ -257,6 +257,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                         ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
                         ('version', self._get(dataset_node, 'aktuelle_version')),
                         ('timeRange', self._get(dataset_node, 'zeitraum')),
+                        ('comments', self._get(dataset_node, 'bemerkungen')),
                         ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
                     ],
                     'related': self._get_related(dataset_node)
@@ -380,6 +381,13 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 'title': self._get(app, 'beschreibung'),
                 'type': 'Applikation',
                 'url': self._get(app, 'url')
+            })
+        pub_list = xpath.find('publikationen')
+        for pub in pub_list:
+            related.append({
+                'title': self._get(pub, 'beschreibung'),
+                'type': 'Publikation',
+                'url': self._get(pub, 'url')
             })
         return related
 
