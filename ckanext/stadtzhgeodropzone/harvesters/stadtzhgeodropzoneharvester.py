@@ -3,6 +3,7 @@
 import os
 import time
 from lxml import etree
+from pprint import pprint
 
 from ofs import get_impl
 from pylons import config
@@ -160,6 +161,13 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         else:
             return element.text
 
+    def _get(self, node, name):
+        element = self._node_exists_and_is_nonempty(node, name)
+        if element:
+            return element
+        else:
+            return ''
+
     def _generate_notes(self, dataset_node, dataset_name):
         '''
         Compose the notes given the elements available within the node
@@ -237,8 +245,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'datasetID': dataset,
                     'title': dataset_node.find('titel').text,
                     'url': None, # the source url for that dataset
-                    # 'notes': dataset_node.find('beschreibung').text,
-                    'notes': self._generate_notes(dataset_node, dataset),
+                    'notes': dataset_node.find('beschreibung').text,
                     'author': dataset_node.find('quelle').text,
                     'maintainer': 'Open Data Zürich',
                     'maintainer_email': 'opendata@zuerich.ch',
@@ -246,6 +253,14 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_url': 'to_be_filled',
                     'tags': self._generate_tags(dataset_node),
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
+                    'extras': [
+                        ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
+                        ('version', self._get(dataset_node, 'aktuelle_version')),
+                        ('timeRange', self._get(dataset_node, 'zeitraum')),
+                        ('comments', self._get(dataset_node, 'bemerkungen')),
+                        ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
+                    ],
+                    'related': self._get_related(dataset_node)
                 }
 
                 obj = HarvestObject(
@@ -335,9 +350,67 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
 
             if not package:
                 result = self._create_or_update_package(package_dict, harvest_object)
+                self._related_create_or_update(package_dict['name'], package_dict['related'])
                 Session.commit()
 
         except Exception, e:
             log.exception(e)
 
         return True
+
+    def _json_encode_attributes(self, properties):
+        _dict = {}
+        for key, value in properties:
+            if value:
+                _dict[key] = value
+
+        return json.dumps(_dict)
+
+    def _get_attributes(self, node):
+        attribut_list = node.find('attributliste')
+        attributes = []
+        for attribut in attribut_list:
+            attributes.append((attribut.find('sprechenderfeldname').text, attribut.find('feldbeschreibung').text))
+        return attributes
+
+    def _get_related(self, xpath):
+        related = []
+        app_list = xpath.find('anwendungen')
+        for app in app_list:
+            related.append({
+                'title': self._get(app, 'beschreibung'),
+                'type': 'Applikation',
+                'url': self._get(app, 'url')
+            })
+        pub_list = xpath.find('publikationen')
+        for pub in pub_list:
+            related.append({
+                'title': self._get(pub, 'beschreibung'),
+                'type': 'Publikation',
+                'url': self._get(pub, 'url')
+            })
+        return related
+
+    def _related_create_or_update(self, dataset_id, data):
+        context = {
+            'model': model,
+            'session': Session,
+            'user': self.config['user']
+        }
+
+        related_items = {}
+        data_dict = {
+            'id': dataset_id
+        }
+        for related in action.get.related_list(context, data_dict):
+            related_items[related['url']] = related
+
+        for entry in data:
+            entry['dataset_id'] = dataset_id
+            if entry['url'] in related_items.keys():
+                entry = dict(related_items[entry['url']].items() + entry.items())
+                log.debug('Updating related %s' % entry)
+                action.update.related_update(context, entry)
+            else:
+                log.debug('Creating related %s' % entry)
+                action.create.related_create(context, entry)
