@@ -45,7 +45,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
     }
 
     DROPZONE_PATH = '/usr/lib/ckan/GEO'
-    METADATA_PATH = '/usr/lib/ckan/METADATA'
+    METADATA_PATH = '/vagrant/data/METADATA'
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
@@ -272,6 +272,9 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                 ids.append(obj.id)
                 
+                if not os.path.isdir(os.path.join(self.METADATA_PATH, dataset)):
+                    os.makedirs(os.path.join(self.METADATA_PATH, dataset))
+                
                 with open(os.path.join(self.METADATA_PATH, dataset, 'metadata-' + str(datetime.date.today())), 'w') as meta_json:
                     meta_json.write(json.dumps(metadata, sort_keys=True, indent=4, separators=(',', ': ')))
                     log.debug('json created')
@@ -345,9 +348,11 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 if os.path.isfile(new_metadata_path) and os.path.isfile(prev_metadata_path):
                     with open(prev_metadata_path) as prev_metadata:
                         with open(new_metadata_path) as new_metadata:
-                            with open(diff_path, 'w') as diff:
-                                d = difflib.HtmlDiff()
-                                diff.write(d.make_file(prev_metadata, new_metadata))
+                            if prev_metadata != new_metadata:
+                                # TODO check that the diff is not blank
+                                with open(diff_path, 'w') as diff:
+                                    d = difflib.HtmlDiff()
+                                    diff.write(d.make_file(prev_metadata, new_metadata))
                     log.debug('Metadata diff generated for the dataset: ' + package_dict['id'])
                     os.remove(prev_metadata_path)
                 else:
