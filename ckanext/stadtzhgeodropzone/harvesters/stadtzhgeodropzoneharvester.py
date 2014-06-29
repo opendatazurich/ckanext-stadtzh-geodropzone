@@ -343,7 +343,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 yesterday = today + delta
                 new_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(today))
                 prev_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(yesterday))
-                diff_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'diff-' + str(today))
+                diff_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'diff-' + str(today) + '.html')
                 
                 if os.path.isfile(new_metadata_path) and os.path.isfile(prev_metadata_path):
                     with open(prev_metadata_path) as prev_metadata:
