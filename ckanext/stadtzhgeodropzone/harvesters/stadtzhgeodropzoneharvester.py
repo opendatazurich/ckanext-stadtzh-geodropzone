@@ -2,6 +2,8 @@
 
 import os
 import time
+import datetime
+import difflib
 from lxml import etree
 from pprint import pprint
 
@@ -43,6 +45,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
     }
 
     DROPZONE_PATH = '/usr/lib/ckan/GEO'
+    METADATA_PATH = config.get('metadata.metadata.path', '/vagrant/data/GEO-METADATA')
+    DIFF_PATH = config.get('metadata.diffpath', '/vagrant/data/diffs')
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
@@ -140,17 +144,6 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         return resources
 
 
-    def _generate_attribute_notes(self, attributlist_node):
-        '''
-        Compose the attribute notes for all the given attributes
-        '''
-        response = u'##Attribute  \n'
-        for attribut in attributlist_node:
-            response += u'**' + attribut.find('sprechenderfeldname').text + u'**  \n'
-            if attribut.find('feldbeschreibung').text != None:
-                response += attribut.find('feldbeschreibung').text + u'  \n'
-        return response
-
     def _node_exists_and_is_nonempty(self, dataset_node, element_name):
         element = dataset_node.find(element_name)
         if element == None:
@@ -167,53 +160,6 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             return element
         else:
             return ''
-
-    def _generate_notes(self, dataset_node, dataset_name):
-        '''
-        Compose the notes given the elements available within the node
-        '''
-        response = u''
-
-        # details
-        element_text = self._node_exists_and_is_nonempty(dataset_node, 'beschreibung')
-        if element_text != None:
-            response += u'**Details**  \n' + element_text + u'  \n'
-
-        response += u'**Urheber**  \n' + u'  \n'
-        response += u'**Erstmalige Veröffentlichung**  \n' + u'  \n'
-
-        # zeitraum
-        element_text = self._node_exists_and_is_nonempty(dataset_node, 'zeitraum')
-        if element_text != None:
-            response += u'**Zeitraum**  \n' + element_text + u'  \n'
-
-        response += u'**Aktualisierungsintervall**  \n' + u'  \n'
-
-        # aktuelle_version
-        element_text = self._node_exists_and_is_nonempty(dataset_node, 'aktuelle_version')
-        if element_text != None:
-            response += u'**Aktuelle Version**  \n' + element_text + u'  \n'
-
-        resources_path = os.path.join(self.DROPZONE_PATH, dataset_name, 'DEFAULT')
-        resource_files = [f for f in os.listdir(resources_path) if not (f != 'meta.xml' or f.endswith(".txt"))]
-        (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(os.path.join(resources_path, resource_files[0]))
-        response += u'**Aktualisierungsdatum**  \n' + str(time.strftime('%d.%m.%Y, %H:%M Uhr', time.localtime(mtime))) + u'  \n'
-
-        response += u'**Datentyp**  \n' + u'  \n'
-
-        # quelle
-        element_text = self._node_exists_and_is_nonempty(dataset_node, 'quelle')
-        if element_text != None:
-            response += u'**Quelle**  \n' + element_text + u'  \n'
-
-        # raeumliche_beziehung
-        element_text = self._node_exists_and_is_nonempty(dataset_node, 'raeumliche_beziehung')
-        if element_text != None:
-            response += u'**Räumliche Beziehung**  \n' + element_text + u'  \n'
-
-        response += self._generate_attribute_notes(dataset_node.find('attributliste'))
-        return response
-
 
     def info(self):
         '''
@@ -271,6 +217,13 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 obj.save()
                 log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                 ids.append(obj.id)
+                
+                if not os.path.isdir(os.path.join(self.METADATA_PATH, dataset)):
+                    os.makedirs(os.path.join(self.METADATA_PATH, dataset))
+                
+                with open(os.path.join(self.METADATA_PATH, dataset, 'metadata-' + str(datetime.date.today())), 'w') as meta_json:
+                    meta_json.write(json.dumps(metadata, sort_keys=True, indent=4, separators=(',', ': ')))
+                    log.debug('Metadata JSON created')
 
         return ids
 
@@ -330,7 +283,43 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             if package: # package has already been imported.
                 # create a diff between this new metadata set and the one from yesterday.
                 # send the diff to SSZ
-                log.debug('TODO: generating the diff for the dataset: ' + package_dict['id'])
+                
+                today = datetime.date.today()
+                new_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(today))
+                prev_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-previous')
+                diff_path = os.path.join(self.DIFF_PATH, str(today) + '-' + package_dict['id'] + '.html')
+                
+                if not os.path.isdir(self.DIFF_PATH):
+                    os.makedirs(self.DIFF_PATH)
+                
+                if os.path.isfile(new_metadata_path):
+                    if os.path.isfile(prev_metadata_path):
+                        with open(prev_metadata_path) as prev_metadata:
+                            with open(new_metadata_path) as new_metadata:
+                                if prev_metadata.read() != new_metadata.read():
+                                    with open(prev_metadata_path) as prev_metadata:
+                                        with open(new_metadata_path) as new_metadata:
+                                            with open(diff_path, 'w') as diff:
+                                                diff.write(
+                                                    "<!DOCTYPE html>\n<html>\n<body>\nMetadata diff for the dataset <a href=\""
+                                                    + self.CKAN_SITE_URL + "/dataset/" + package_dict['id'] + "\">"
+                                                    + package_dict['id'] + "</a></body></html>\n"
+                                                )
+                                                d = difflib.HtmlDiff()
+                                                diff.write(d.make_file(prev_metadata, new_metadata))
+                                                log.debug('Metadata diff generated for the dataset: ' + package_dict['id'])
+                                else:
+                                    log.debug('No change in metadata for the dataset: ' + package_dict['id'])
+                        os.remove(prev_metadata_path)
+                        log.debug('Deleted previous day\'s metadata file.')
+                    else:
+                        log.debug('No earlier metadata JSON')
+                    
+                    os.rename(new_metadata_path, prev_metadata_path)
+                    
+                else:
+                    log.debug(new_metadata_path + ' Metadata JSON missing for the dataset: ' + package_dict['id'])
+                
             else: # package does not exist, therefore create it.
                 pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
 
