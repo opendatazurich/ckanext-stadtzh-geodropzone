@@ -315,7 +315,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                                                     "\\u00dc": "Ü",
                                                     "ISO-8859-1": "UTF-8"
                                                 }
-                                                html = d.make_file(prev_metadata, new_metadata)
+                                                html = d.make_file(prev_metadata, new_metadata, context=True, numlines=1)
                                                 for code in umlauts.keys():
                                                     html = html.replace(code, umlauts[code])
                                                 diff.write(html)
