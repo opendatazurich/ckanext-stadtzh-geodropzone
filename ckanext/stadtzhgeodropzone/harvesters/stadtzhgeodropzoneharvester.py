@@ -45,8 +45,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
     }
 
     DROPZONE_PATH = '/usr/lib/ckan/GEO'
-    METADATA_PATH = config.get('metadata.metadata.path', '/vagrant/data/GEO-METADATA')
-    DIFF_PATH = config.get('metadata.diffpath', '/vagrant/data/diffs')
+    METADATA_PATH = config.get('metadata.metadatapath', '/usr/lib/ckan/diffs/geo-metadata')
+    DIFF_PATH = config.get('metadata.diffpath', '/usr/lib/ckan/diffs')
 
     # ---
     # COPIED FROM THE CKAN STORAGE CONTROLLER
