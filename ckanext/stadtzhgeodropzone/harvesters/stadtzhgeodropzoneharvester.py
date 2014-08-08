@@ -195,8 +195,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'author': dataset_node.find('quelle').text,
                     'maintainer': 'Open Data Zürich',
                     'maintainer_email': 'opendata@zuerich.ch',
-                    'license_id': 'to_be_filled',
-                    'license_url': 'to_be_filled',
+                    'license_id': 'cc-zero',
+                    'license_url': 'http://opendefinition.org/licenses/cc-zero/',
                     'tags': self._generate_tags(dataset_node),
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
