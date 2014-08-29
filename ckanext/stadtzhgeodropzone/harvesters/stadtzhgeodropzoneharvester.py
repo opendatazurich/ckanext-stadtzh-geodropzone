@@ -200,7 +200,6 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_id': 'cc-zero',
                     'license_url': 'http://opendefinition.org/licenses/cc-zero/',
                     'tags': self._generate_tags(dataset_node),
-                    'groups': dataset_node.find('kategorie').text,
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
                             ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
@@ -225,20 +224,21 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'user': self.config['user']
                 }
 
-                groups = []
-                group_titles = metadata['groups'].split(', ')
-                for title in group_titles:
-                    if title == u'Bauen und Wohnen':
-                        name = u'bauen-wohnen'
-                    else:
-                        name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
-                    try:
-                        data_dict = {'id': name}
-                        group_id = get_action('group_show')(context, data_dict)['id']
-                        groups.append(group_id)
-                    except:
-                        log.debug('Couldn\'t get group id for title %s.' % title)
-                metadata['groups'] = groups
+                if dataset_node.find('kategorie').text is not None:
+                    groups = []
+                    group_titles = metadata['groups'].split(', ')
+                    for title in group_titles:
+                        if title == u'Bauen und Wohnen':
+                            name = u'bauen-wohnen'
+                        else:
+                            name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
+                        try:
+                            data_dict = {'id': name}
+                            group_id = get_action('group_show')(context, data_dict)['id']
+                            groups.append(group_id)
+                        except:
+                            log.debug('Couldn\'t get group id for title %s.' % title)
+                    metadata['groups'] = groups
 
                 obj = HarvestObject(
                     guid = metadata['datasetID'],
