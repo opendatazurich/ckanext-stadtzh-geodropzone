@@ -15,6 +15,7 @@ from ckan.model import Session, Package
 from ckan.logic import ValidationError, NotFound, get_action, action
 from ckan.lib.helpers import json
 from ckan.lib.munge import munge_title_to_name
+from ckanext.harvest.harvesters.base import munge_tag
 
 from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, \
                                     HarvestObjectError
@@ -104,10 +105,11 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         '''
         Given a dataset node it extracts the tags and returns them in an array
         '''
+        tags = []
         if dataset_node.find('keywords').text is not None:
-            return dataset_node.find('keywords').text.split(', ')
-        else:
-            return []
+            for tag in dataset_node.find('keywords').text.split(', '):
+                tags.append(munge_tag(tag))
+        return tags
 
 
     def _generate_resources_dict_array(self, dataset):
