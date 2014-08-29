@@ -200,7 +200,6 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_id': 'cc-zero',
                     'license_url': 'http://opendefinition.org/licenses/cc-zero/',
                     'tags': self._generate_tags(dataset_node),
-                    'groups': dataset_node.find('kategorie').text,
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
                             ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
