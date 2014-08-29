@@ -362,12 +362,12 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         return True
 
     def _json_encode_attributes(self, properties):
-        _dict = {}
+        attributes = []
         for key, value in properties:
             if value:
-                _dict[key] = value
+                attributes.append((key, value))
 
-        return json.dumps(_dict)
+        return json.dumps(attributes)
 
     def _get_attributes(self, node):
         attribut_list = node.find('attributliste')
