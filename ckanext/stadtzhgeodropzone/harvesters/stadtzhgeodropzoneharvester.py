@@ -200,16 +200,45 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_id': 'cc-zero',
                     'license_url': 'http://opendefinition.org/licenses/cc-zero/',
                     'tags': self._generate_tags(dataset_node),
+                    'groups': dataset_node.find('kategorie').text,
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
-                        ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
-                        ('version', self._get(dataset_node, 'aktuelle_version')),
-                        ('timeRange', self._get(dataset_node, 'zeitraum')),
-                        ('comments', self._get(dataset_node, 'bemerkungen')),
-                        ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
+                            ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
+                            ('dateFirstPublished', self._get(dataset_node, 'erstmalige_veroeffentlichung')),
+                            ('dateLastUpdated', self._get(dataset_node, 'aktualisierungsdatum')),
+                            ('updateInterval', self._get(dataset_node, 'aktualisierungsintervall')),
+                            ('dataType', self._get(dataset_node, 'datentyp')),
+                            ('legalInformation', self._get(dataset_node, 'rechtsgrundlage')),
+                            ('version', self._get(dataset_node, 'aktuelle_version')),
+                            ('timeRange', self._get(dataset_node, 'zeitraum')),
+                            ('comments', self._get(dataset_node, 'bemerkungen')),
+                            ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
                     ],
                     'related': self._get_related(dataset_node)
                 }
+
+                # Get group IDs from group titles
+                user = model.User.get(self.config['user'])
+                context = {
+                    'model': model,
+                    'session': Session,
+                    'user': self.config['user']
+                }
+
+                groups = []
+                group_titles = metadata['groups'].split(', ')
+                for title in group_titles:
+                    if title == u'Bauen und Wohnen':
+                        name = u'bauen-wohnen'
+                    else:
+                        name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
+                    try:
+                        data_dict = {'id': name}
+                        group_id = get_action('group_show')(context, data_dict)['id']
+                        groups.append(group_id)
+                    except:
+                        log.debug('Couldn\'t get group id for title %s.' % title)
+                metadata['groups'] = groups
 
                 obj = HarvestObject(
                     guid = metadata['datasetID'],
