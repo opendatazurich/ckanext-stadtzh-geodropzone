@@ -224,21 +224,24 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'user': self.config['user']
                 }
 
-                if dataset_node.find('kategorie').text is not None:
-                    groups = []
-                    group_titles = metadata['groups'].split(', ')
-                    for title in group_titles:
-                        if title == u'Bauen und Wohnen':
-                            name = u'bauen-wohnen'
-                        else:
-                            name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
-                        try:
-                            data_dict = {'id': name}
-                            group_id = get_action('group_show')(context, data_dict)['id']
-                            groups.append(group_id)
-                        except:
-                            log.debug('Couldn\'t get group id for title %s.' % title)
-                    metadata['groups'] = groups
+                try:
+                    if dataset_node.find('kategorie').text is not None:
+                        groups = []
+                        group_titles = metadata['groups'].split(', ')
+                        for title in group_titles:
+                            if title == u'Bauen und Wohnen':
+                                name = u'bauen-wohnen'
+                            else:
+                                name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
+                            try:
+                                data_dict = {'id': name}
+                                group_id = get_action('group_show')(context, data_dict)['id']
+                                groups.append(group_id)
+                            except:
+                                log.debug('Couldn\'t get group id for title %s.' % title)
+                        metadata['groups'] = groups
+                except AttributeError:
+                    log.debug('No groups found for dataset %s.' % dataset)
 
                 obj = HarvestObject(
                     guid = metadata['datasetID'],
