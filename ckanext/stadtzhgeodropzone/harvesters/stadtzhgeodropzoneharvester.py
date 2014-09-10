@@ -422,7 +422,9 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         attribut_list = node.find('attributliste')
         attributes = []
         for attribut in attribut_list:
-            attributes.append((attribut.find('sprechenderfeldname').text, attribut.find('feldbeschreibung').text))
+            tech_name = attribut.get('technischerfeldname')
+            speak_name = attribut.find('sprechenderfeldname').text
+            attributes.append(('%s (technisch: %s)' % (speak_name, tech_name), attribut.find('feldbeschreibung').text))
         return attributes
 
     def _get_related(self, xpath):
