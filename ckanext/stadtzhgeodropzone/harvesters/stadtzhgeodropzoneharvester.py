@@ -111,13 +111,30 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 tags.append(munge_tag(tag))
         return tags
 
+    def _sort_resource(self, x, y):
+
+        order = {
+            'zip':  1,
+            'wms':  2,
+            'wfs':  3,
+            'kmz':  4,
+            'json': 5
+        }
+
+        x_format = x['format'].lower()
+        y_format = y['format'].lower()
+        if not x_format in order:
+            return -1
+        if not y_format in order:
+            return 1
+        return cmp(order[x_format], order[y_format])
 
     def _generate_resources_dict_array(self, dataset):
         '''
         Given a dataset folder, it'll return an array of resource metadata
         '''
         resources = []
-        resource_files = self._remove_hidden_files((f for f in os.listdir(os.path.join(self.DROPZONE_PATH, dataset)) 
+        resource_files = self._remove_hidden_files((f for f in os.listdir(os.path.join(self.DROPZONE_PATH, dataset))
             if os.path.isfile(os.path.join(self.DROPZONE_PATH, dataset, f))))
         log.debug(resource_files)
 
@@ -143,13 +160,13 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'resource_type': 'file'
                 })
 
-        return resources
+        sorted_resources = sorted(resources, cmp=lambda x,y: self._sort_resource(x, y))
+        return sorted_resources
 
 
     def _node_exists_and_is_nonempty(self, dataset_node, element_name):
         element = dataset_node.find(element_name)
         if element == None:
-            log.debug('TODO: send a message to SSZ, telling them Georg has to fix the meta.xml (OGDZH-29)')
             return None
         elif element.text == None:
             return None
@@ -251,10 +268,10 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 obj.save()
                 log.debug('adding ' + metadata['datasetID'] + ' to the queue')
                 ids.append(obj.id)
-                
+
                 if not os.path.isdir(os.path.join(self.METADATA_PATH, dataset)):
                     os.makedirs(os.path.join(self.METADATA_PATH, dataset))
-                
+
                 with open(os.path.join(self.METADATA_PATH, dataset, 'metadata-' + str(datetime.date.today())), 'w') as meta_json:
                     meta_json.write(json.dumps(metadata, sort_keys=True, indent=4, separators=(',', ': ')))
                     log.debug('Metadata JSON created')
@@ -317,15 +334,15 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
             if package: # package has already been imported.
                 # create a diff between this new metadata set and the one from yesterday.
                 # send the diff to SSZ
-                
+
                 today = datetime.date.today()
                 new_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(today))
                 prev_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-previous')
                 diff_path = os.path.join(self.DIFF_PATH, str(today) + '-' + package_dict['id'] + '.html')
-                
+
                 if not os.path.isdir(self.DIFF_PATH):
                     os.makedirs(self.DIFF_PATH)
-                
+
                 if os.path.isfile(new_metadata_path):
                     if os.path.isfile(prev_metadata_path):
                         with open(prev_metadata_path) as prev_metadata:
@@ -360,12 +377,12 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                         log.debug('Deleted previous day\'s metadata file.')
                     else:
                         log.debug('No earlier metadata JSON')
-                    
+
                     os.rename(new_metadata_path, prev_metadata_path)
-                    
+
                 else:
                     log.debug(new_metadata_path + ' Metadata JSON missing for the dataset: ' + package_dict['id'])
-                
+
             else: # package does not exist, therefore create it.
                 pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
 
