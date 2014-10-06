@@ -233,6 +233,9 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'related': self._get_related(dataset_node)
                 }
 
+                if dataset_node.find('datenqualitaet').text:
+                    metadata['notes'] = metadata['notes']  + u'\n\nDatenqualität: ' + dataset_node.find('datenqualitaet').text
+
                 # Get group IDs from group titles
                 user = model.User.get(self.config['user'])
                 context = {
@@ -263,7 +266,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 for extra in list (metadata['extras']):
                     if extra[0] == 'updateInterval' or extra[0] == 'dataType':
                         if not extra[1]:
-                            metadata['extras'].append((extra[0], '---'))
+                            metadata['extras'].append((extra[0], '   '))
                             metadata['extras'].remove(extra)
                             log.debug('No value in meta.xml for %s' % extra[0])
 
