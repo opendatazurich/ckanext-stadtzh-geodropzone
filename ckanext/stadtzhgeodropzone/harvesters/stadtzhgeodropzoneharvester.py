@@ -108,7 +108,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         tags = []
         if dataset_node.find('schlagworte') is not None and dataset_node.find('schlagworte').text:
             for tag in dataset_node.find('schlagworte').text.split(', '):
-                tags.append(munge_tag(tag))
+                tags.append(tag)
         log.debug('Added tags: %s' % str(tags))
         return tags
 
