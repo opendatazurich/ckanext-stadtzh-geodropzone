@@ -106,9 +106,10 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         Given a dataset node it extracts the tags and returns them in an array
         '''
         tags = []
-        if dataset_node.find('keywords').text is not None:
-            for tag in dataset_node.find('keywords').text.split(', '):
+        if dataset_node.find('schlagworte') is not None and dataset_node.find('schlagworte').text:
+            for tag in dataset_node.find('schlagworte').text.split(', '):
                 tags.append(munge_tag(tag))
+        log.debug('Added tags: %s' % str(tags))
         return tags
 
     def _sort_resource(self, x, y):
@@ -209,7 +210,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 metadata = {
                     'datasetID': dataset,
                     'title': dataset_node.find('titel').text,
-                    'url': None, # the source url for that dataset
+                    'url': self._get(dataset_node, 'lieferant'),
                     'notes': dataset_node.find('beschreibung').text,
                     'author': dataset_node.find('quelle').text,
                     'maintainer': 'Open Data Zürich',
@@ -217,6 +218,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'license_id': 'cc-zero',
                     'license_url': 'http://opendefinition.org/licenses/cc-zero/',
                     'tags': self._generate_tags(dataset_node),
+                    'groups': self._get(dataset_node, 'kategorie'),
                     'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
                     'extras': [
                             ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
@@ -228,13 +230,11 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                             ('version', self._get(dataset_node, 'aktuelle_version')),
                             ('timeRange', self._get(dataset_node, 'zeitraum')),
                             ('comments', self._get(dataset_node, 'bemerkungen')),
-                            ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node)))
+                            ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node))),
+                            ('dataQuality', self._get(dataset_node, 'datenqualitaet'))
                     ],
                     'related': self._get_related(dataset_node)
                 }
-
-                if dataset_node.find('datenqualitaet').text:
-                    metadata['notes'] = metadata['notes']  + u'\n\nDatenqualität: ' + dataset_node.find('datenqualitaet').text
 
                 # Get group IDs from group titles
                 user = model.User.get(self.config['user'])
@@ -245,21 +245,21 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 }
 
                 try:
-                    if dataset_node.find('kategorie').text is not None:
-                        groups = []
-                        group_titles = metadata['groups'].split(', ')
-                        for title in group_titles:
-                            if title == u'Bauen und Wohnen':
-                                name = u'bauen-wohnen'
-                            else:
-                                name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
-                            try:
-                                data_dict = {'id': name}
-                                group_id = get_action('group_show')(context, data_dict)['id']
-                                groups.append(group_id)
-                            except:
-                                log.debug('Couldn\'t get group id for title %s.' % title)
-                        metadata['groups'] = groups
+                    groups = []
+                    group_titles = metadata['groups'].split(', ')
+                    for title in group_titles:
+                        if title == u'Bauen und Wohnen':
+                            name = u'bauen-wohnen'
+                        else:
+                            name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
+                        try:
+                            data_dict = {'id': name}
+                            group_id = get_action('group_show')(context, data_dict)['id']
+                            groups.append(group_id)
+                            log.debug('Added group %s' % name)
+                        except:
+                            log.debug('Couldn\'t get group id for title %s.' % title)
+                    metadata['groups'] = groups
                 except AttributeError:
                     log.debug('No groups found for dataset %s.' % dataset)
 
