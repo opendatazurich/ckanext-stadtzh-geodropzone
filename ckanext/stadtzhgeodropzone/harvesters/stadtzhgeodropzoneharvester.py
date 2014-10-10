@@ -439,20 +439,16 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
 
     def _get_related(self, xpath):
         related = []
-        app_list = xpath.find('anwendungen')
-        for app in app_list:
-            related.append({
-                'title': self._get(app, 'beschreibung'),
-                'type': 'Applikation',
-                'url': self._get(app, 'url')
-            })
-        pub_list = xpath.find('publikationen')
-        for pub in pub_list:
-            related.append({
-                'title': self._get(pub, 'beschreibung'),
-                'type': 'Publikation',
-                'url': self._get(pub, 'url')
-            })
+        for element, related_type in [('anwendungen', 'Applikation'),
+                                      ('publikationen', 'Publikation')]:
+            related_list = xpath.find(element)
+            if related_list is not None:
+                for item in related_list:
+                    related.append({
+                        'title': self._get(item, 'beschreibung'),
+                        'type': related_type,
+                        'url': self._get(item, 'url')
+                    })
         return related
 
     def _related_create_or_update(self, dataset_id, data):
