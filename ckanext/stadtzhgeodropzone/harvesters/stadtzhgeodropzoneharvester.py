@@ -181,6 +181,23 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
         else:
             return ''
 
+    def _convert_comments(self, node):
+        comments = node.find('bemerkungen')
+        if comments is not None:
+            log.debug(comments.tag + ' ' + str(comments.attrib))
+            html = ''
+            for comment in comments:
+                if self._get(comment, 'titel'):
+                    html += '**' + self._get(comment, 'titel') + '**\n\n'
+                if self._get(comment, 'text'):
+                    html += self._get(comment, 'text') + '\n\n'
+                link = comment.find('link')
+                if link is not None:
+                    label = self._get(link, 'label')
+                    url = self._get(link, 'url')
+                    html += '[' + label + '](' + url + ')\n\n'
+                return html
+
     def info(self):
         '''
         Return some general info about this harvester
@@ -229,7 +246,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                             ('legalInformation', self._get(dataset_node, 'rechtsgrundlage')),
                             ('version', self._get(dataset_node, 'aktuelle_version')),
                             ('timeRange', self._get(dataset_node, 'zeitraum')),
-                            ('comments', self._get(dataset_node, 'bemerkungen')),
+                            ('comments', self._convert_comments(dataset_node)),
                             ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node))),
                             ('dataQuality', self._get(dataset_node, 'datenqualitaet'))
                     ],
