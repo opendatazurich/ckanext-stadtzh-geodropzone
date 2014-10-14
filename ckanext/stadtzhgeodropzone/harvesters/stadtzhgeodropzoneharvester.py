@@ -276,7 +276,11 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                             groups.append(group_id)
                             log.debug('Added group %s' % name)
                         except:
-                            log.debug('Couldn\'t get group id for title %s.' % title)
+                            data_dict['name'] = name
+                            data_dict['title'] = title
+                            log.debug('Couldn\'t get group id. Creating the group `%s` with data_dict: %s', name, data_dict)
+                            group_id = get_action('group_create')(context, data_dict)['id']
+                            groups.append(group_id)
                     metadata['groups'] = groups
                 except AttributeError:
                     log.debug('No groups found for dataset %s.' % dataset)
