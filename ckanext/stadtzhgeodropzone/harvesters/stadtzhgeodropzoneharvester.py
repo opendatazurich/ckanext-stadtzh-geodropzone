@@ -262,7 +262,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                     'user': self.config['user']
                 }
 
-                try:
+                if metadata['groups']:
                     groups = []
                     group_titles = metadata['groups'].split(', ')
                     for title in group_titles:
@@ -282,7 +282,8 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                             group_id = get_action('group_create')(context, data_dict)['id']
                             groups.append(group_id)
                     metadata['groups'] = groups
-                except AttributeError:
+                else:
+                    metadata['groups'] = []
                     log.debug('No groups found for dataset %s.' % dataset)
 
                 for extra in list (metadata['extras']):
