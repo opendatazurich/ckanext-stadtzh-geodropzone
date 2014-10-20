@@ -1,4 +1,4 @@
-#coding: utf-8
+# coding: utf-8
 
 import os
 import time
@@ -425,7 +425,7 @@ class StadtzhgeodropzoneHarvester(HarvesterBase):
                 r['name'] = munge_filename(r['name'])
                 if r['resource_type'] == 'file':
                     label = package_dict['datasetID'] + '/' + r['name']
-                                        file_contents = ''
+                    file_contents = ''
                     with open(os.path.join(self.DROPZONE_PATH, package_dict['datasetID'], 'DEFAULT', old_filename)) as contents:
                         file_contents = contents.read()
                     params = {
