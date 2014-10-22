@@ -1,14 +1,9 @@
 # coding: utf-8
 
 import os
-import difflib
 
 from pylons import config
-from ckan import model
 from ckan.model import Session
-from ckan.logic import get_action
-from ckan.lib.helpers import json
-from ckan.lib.munge import munge_title_to_name, munge_filename
 from ckanext.stadtzhharvest.harvester import StadtzhHarvester
 
 import logging
@@ -40,19 +35,8 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
 
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester fetch_stage')
-
-        # Get the URL
-        datasetID = json.loads(harvest_object.content)['datasetID']
-        log.debug(harvest_object.content)
-
-        # Get contents
-        try:
-            harvest_object.save()
-            log.debug('successfully processed ' + datasetID)
-            return True
-        except Exception, e:
-            log.exception(e)
-
+        return self._fetch_datasets(harvest_object)
+        
     def import_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester import_stage')
 
@@ -61,9 +45,8 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
             return False
 
         try:
-            self._import_package(harvest_object)
+            self._import_package(harvest_object, meta_dir='DEFAULT')
             Session.commit()
-
         except Exception, e:
             log.exception(e)
 
