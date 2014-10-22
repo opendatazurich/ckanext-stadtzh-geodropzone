@@ -199,57 +199,7 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
             # Insert the package only when it's not already in CKAN, but move the resources anyway.
             package = model.Package.get(package_dict['id'])
             if package: # package has already been imported.
-                # create a diff between this new metadata set and the one from yesterday.
-                # send the diff to SSZ
-
-                today = datetime.date.today()
-                new_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-' + str(today))
-                prev_metadata_path = os.path.join(self.METADATA_PATH, package_dict['id'], 'metadata-previous')
-                diff_path = os.path.join(self.DIFF_PATH, str(today) + '-' + package_dict['id'] + '.html')
-
-                if not os.path.isdir(self.DIFF_PATH):
-                    os.makedirs(self.DIFF_PATH)
-
-                if os.path.isfile(new_metadata_path):
-                    if os.path.isfile(prev_metadata_path):
-                        with open(prev_metadata_path) as prev_metadata:
-                            with open(new_metadata_path) as new_metadata:
-                                if prev_metadata.read() != new_metadata.read():
-                                    with open(prev_metadata_path) as prev_metadata:
-                                        with open(new_metadata_path) as new_metadata:
-                                            with open(diff_path, 'w') as diff:
-                                                diff.write(
-                                                    "<!DOCTYPE html>\n<html>\n<body>\n<h2>Metadata diff for the dataset <a href=\""
-                                                    + self.INTERNAL_SITE_URL + "/dataset/" + package_dict['id'] + "\">"
-                                                    + package_dict['id'] + "</a></h2></body></html>\n"
-                                                )
-                                                d = difflib.HtmlDiff(wrapcolumn=60)
-                                                umlauts = {
-                                                    "\\u00e4": "ä",
-                                                    "\\u00f6": "ö",
-                                                    "\\u00fc": "ü",
-                                                    "\\u00c4": "Ä",
-                                                    "\\u00d6": "Ö",
-                                                    "\\u00dc": "Ü",
-                                                    "ISO-8859-1": "UTF-8"
-                                                }
-                                                html = d.make_file(prev_metadata, new_metadata, context=True, numlines=1)
-                                                for code in umlauts.keys():
-                                                    html = html.replace(code, umlauts[code])
-                                                diff.write(html)
-                                                log.debug('Metadata diff generated for the dataset: ' + package_dict['id'])
-                                else:
-                                    log.debug('No change in metadata for the dataset: ' + package_dict['id'])
-                        os.remove(prev_metadata_path)
-                        log.debug('Deleted previous day\'s metadata file.')
-                    else:
-                        log.debug('No earlier metadata JSON')
-
-                    os.rename(new_metadata_path, prev_metadata_path)
-
-                else:
-                    log.debug(new_metadata_path + ' Metadata JSON missing for the dataset: ' + package_dict['id'])
-
+                self._create_diffs(package_dict)
             else: # package does not exist, therefore create it.
                 pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
 
