@@ -1,28 +1,19 @@
 # coding: utf-8
 
 import os
-import datetime
 import difflib
-from lxml import etree
-from pprint import pprint
 
-from ofs import get_impl
 from pylons import config
-from ckan.lib.base import c
 from ckan import model
-from ckan.model import Session, Package
-from ckan.logic import ValidationError, NotFound, get_action, action
+from ckan.model import Session
+from ckan.logic import get_action
 from ckan.lib.helpers import json
 from ckan.lib.munge import munge_title_to_name, munge_filename
-from ckanext.harvest.harvesters.base import munge_tag
-
-from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError, HarvestObjectError
 from ckanext.stadtzhharvest.harvester import StadtzhHarvester
-
-from pylons import config
 
 import logging
 log = logging.getLogger(__name__)
+
 
 class StadtzhgeodropzoneHarvester(StadtzhHarvester):
     '''
@@ -43,107 +34,9 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
             'form_config_interface': 'Text'
         }
 
-
     def gather_stage(self, harvest_job):
         log.debug('In StadtzhgeodropzoneHarvester gather_stage')
-
-        ids = []
-
-        # list directories in geodropzone folder
-        datasets = self._remove_hidden_files(os.listdir(self.DROPZONE_PATH))
-
-        # foreach -> meta.xml -> create entry
-        for dataset in datasets:
-            with open(os.path.join(self.DROPZONE_PATH, dataset, 'DEFAULT/meta.xml'), 'r') as meta_xml:
-                parser = etree.XMLParser(encoding='utf-8')
-                dataset_node = etree.fromstring(meta_xml.read(), parser=parser).find('datensatz')
-
-                metadata = {
-                    'datasetID': dataset,
-                    'title': dataset_node.find('titel').text,
-                    'url': self._get(dataset_node, 'lieferant'),
-                    'notes': dataset_node.find('beschreibung').text,
-                    'author': dataset_node.find('quelle').text,
-                    'maintainer': 'Open Data Zürich',
-                    'maintainer_email': 'opendata@zuerich.ch',
-                    'license_id': 'cc-zero',
-                    'license_url': 'http://opendefinition.org/licenses/cc-zero/',
-                    'tags': self._generate_tags(dataset_node),
-                    'groups': self._get(dataset_node, 'kategorie'),
-                    'resources': self._generate_resources_dict_array(dataset + '/DEFAULT'),
-                    'extras': [
-                            ('spatialRelationship', self._get(dataset_node, 'raeumliche_beziehung')),
-                            ('dateFirstPublished', self._get(dataset_node, 'erstmalige_veroeffentlichung')),
-                            ('dateLastUpdated', self._get(dataset_node, 'aktualisierungsdatum')),
-                            ('updateInterval', self._get(dataset_node, 'aktualisierungsintervall').replace(u'ä', u'ae').replace(u'ö', u'oe').replace(u'ü', u'ue')),
-                            ('dataType', self._get(dataset_node, 'datentyp')),
-                            ('legalInformation', self._get(dataset_node, 'rechtsgrundlage')),
-                            ('version', self._get(dataset_node, 'aktuelle_version')),
-                            ('timeRange', self._get(dataset_node, 'zeitraum')),
-                            ('comments', self._convert_comments(dataset_node)),
-                            ('attributes', self._json_encode_attributes(self._get_attributes(dataset_node))),
-                            ('dataQuality', self._get(dataset_node, 'datenqualitaet'))
-                    ],
-                    'related': self._get_related(dataset_node)
-                }
-
-                # Get group IDs from group titles
-                user = model.User.get(self.config['user'])
-                context = {
-                    'model': model,
-                    'session': Session,
-                    'user': self.config['user']
-                }
-
-                if metadata['groups']:
-                    groups = []
-                    group_titles = metadata['groups'].split(', ')
-                    for title in group_titles:
-                        if title == u'Bauen und Wohnen':
-                            name = u'bauen-wohnen'
-                        else:
-                            name = title.lower().replace(u'ö', u'oe').replace(u'ä', u'ae')
-                        try:
-                            data_dict = {'id': name}
-                            group_id = get_action('group_show')(context, data_dict)['id']
-                            groups.append(group_id)
-                            log.debug('Added group %s' % name)
-                        except:
-                            data_dict['name'] = name
-                            data_dict['title'] = title
-                            log.debug('Couldn\'t get group id. Creating the group `%s` with data_dict: %s', name, data_dict)
-                            group_id = get_action('group_create')(context, data_dict)['id']
-                            groups.append(group_id)
-                    metadata['groups'] = groups
-                else:
-                    metadata['groups'] = []
-                    log.debug('No groups found for dataset %s.' % dataset)
-
-                for extra in list (metadata['extras']):
-                    if extra[0] == 'updateInterval' or extra[0] == 'dataType':
-                        if not extra[1]:
-                            metadata['extras'].append((extra[0], '   '))
-                            metadata['extras'].remove(extra)
-                            log.debug('No value in meta.xml for %s' % extra[0])
-
-                obj = HarvestObject(
-                    guid = metadata['datasetID'],
-                    job = harvest_job,
-                    content = json.dumps(metadata)
-                )
-                obj.save()
-                log.debug('adding ' + metadata['datasetID'] + ' to the queue')
-                ids.append(obj.id)
-
-                if not os.path.isdir(os.path.join(self.METADATA_PATH, dataset)):
-                    os.makedirs(os.path.join(self.METADATA_PATH, dataset))
-
-                with open(os.path.join(self.METADATA_PATH, dataset, 'metadata-' + str(datetime.date.today())), 'w') as meta_json:
-                    meta_json.write(json.dumps(metadata, sort_keys=True, indent=4, separators=(',', ': ')))
-                    log.debug('Metadata JSON created')
-
-        return ids
-
+        return self._gather_datasets(harvest_job)
 
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester fetch_stage')
@@ -159,8 +52,6 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
             return True
         except Exception, e:
             log.exception(e)
-
-
 
     def import_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester import_stage')
