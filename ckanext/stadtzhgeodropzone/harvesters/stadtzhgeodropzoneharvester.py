@@ -1,7 +1,6 @@
 # coding: utf-8
 
 import os
-import time
 import datetime
 import difflib
 from lxml import etree
@@ -170,59 +169,9 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
             log.error('No harvest object received')
             return False
 
-
         try:
-            package_dict = json.loads(harvest_object.content)
-            package_dict['id'] = harvest_object.guid
-            package_dict['name'] = munge_title_to_name(package_dict[u'datasetID'])
-
-            user = model.User.get(self.config['user'])
-            context = {
-                'model': model,
-                'session': Session,
-                'user': self.config['user']
-            }
-
-            # Find or create the organization the dataset should get assigned to.
-            try:
-                data_dict = {
-                    'permission': 'edit_group',
-                    'id': munge_title_to_name(self.ORGANIZATION['de']),
-                    'name': munge_title_to_name(self.ORGANIZATION['de']),
-                    'title': self.ORGANIZATION['de']
-                }
-                package_dict['owner_org'] = get_action('organization_show')(context, data_dict)['id']
-            except:
-                organization = get_action('organization_create')(context, data_dict)
-                package_dict['owner_org'] = organization['id']
-
-            # Insert the package only when it's not already in CKAN, but move the resources anyway.
-            package = model.Package.get(package_dict['id'])
-            if package: # package has already been imported.
-                self._create_diffs(package_dict)
-            else: # package does not exist, therefore create it.
-                pkg_role = model.PackageRole(package=package, user=user, role=model.Role.ADMIN)
-
-            # Move file around and make sure it's in the file-store
-            for r in package_dict['resources']:
-                old_filename = r['name']
-                r['name'] = munge_filename(r['name'])
-                if r['resource_type'] == 'file':
-                    label = package_dict['datasetID'] + '/' + r['name']
-                    file_contents = ''
-                    with open(os.path.join(self.DROPZONE_PATH, package_dict['datasetID'], 'DEFAULT', old_filename)) as contents:
-                        file_contents = contents.read()
-                    params = {
-                        'filename-original': 'the original file name',
-                        'uploaded-by': self.config['user']
-                    }
-                    r['url'] = self.CKAN_SITE_URL + '/storage/f/' + label
-                    self.get_ofs().put_stream(self.BUCKET, label, file_contents, params)
-
-            if not package:
-                result = self._create_or_update_package(package_dict, harvest_object)
-                self._related_create_or_update(package_dict['name'], package_dict['related'])
-                Session.commit()
+            self._import_package(harvest_object)
+            Session.commit()
 
         except Exception, e:
             log.exception(e)
