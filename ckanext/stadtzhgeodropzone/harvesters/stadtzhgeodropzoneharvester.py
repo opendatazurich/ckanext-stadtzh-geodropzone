@@ -15,7 +15,8 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
     The harvester for the Stadt ZH GEO Dropzone
     '''
 
-    DROPZONE_PATH = '/usr/lib/ckan/GEO'
+    DATA_PATH = '/usr/lib/ckan/GEO'
+    META_DIR = 'DEFAULT'
     METADATA_PATH = config.get('metadata.metadatapath', '/usr/lib/ckan/diffs/geo-metadata')
 
     def info(self):
@@ -36,18 +37,7 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester fetch_stage')
         return self._fetch_datasets(harvest_object)
-        
+
     def import_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester import_stage')
-
-        if not harvest_object:
-            log.error('No harvest object received')
-            return False
-
-        try:
-            self._import_package(harvest_object, meta_dir='DEFAULT')
-            Session.commit()
-        except Exception, e:
-            log.exception(e)
-
-        return True
+        return self._import_datasets(harvest_object)
