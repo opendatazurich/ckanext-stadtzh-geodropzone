@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import sys, os
 
 version = '0.0'
 
@@ -21,13 +20,14 @@ setup(
     zip_safe=False,
     install_requires=[
         # -*- Extra requirements: -*-
+        'ckanext-stadtzh-harvest'
     ],
-    entry_points=\
+    entry_points=
     """
     [ckan.plugins]
     stadtzhgeodropzone=ckanext.stadtzhgeodropzone.plugins:StadtzhgeodropzoneHarvest
     stadtzhgeodropzone_harvester=ckanext.stadtzhgeodropzone.harvesters:StadtzhgeodropzoneHarvester
     [paste.paster_command]
-    harvester=ckanext.stadtzhgeodropzone.commands.harvester:Harvester
+    harvester=ckanext.stadtzhgeodropzone.commands.harvester:HarvesterCommand
     """,
 )
