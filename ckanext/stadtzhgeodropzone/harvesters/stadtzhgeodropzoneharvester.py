@@ -32,7 +32,7 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
 
     def gather_stage(self, harvest_job):
         log.debug('In StadtzhgeodropzoneHarvester gather_stage')
-        return self._gather_datasets(harvest_job, meta_dir='DEFAULT')
+        return self._gather_datasets(harvest_job)
 
     def fetch_stage(self, harvest_object):
         log.debug('In StadtzhgeodropzoneHarvester fetch_stage')
