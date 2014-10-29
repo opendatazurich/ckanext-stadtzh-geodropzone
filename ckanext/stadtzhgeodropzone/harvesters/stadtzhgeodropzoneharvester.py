@@ -1,12 +1,8 @@
 # coding: utf-8
 
-import os
-
-from pylons import config
-from ckan.model import Session
 from ckanext.stadtzhharvest.harvester import StadtzhHarvester
-
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -17,7 +13,7 @@ class StadtzhgeodropzoneHarvester(StadtzhHarvester):
 
     DATA_PATH = '/usr/lib/ckan/GEO'
     META_DIR = 'DEFAULT'
-    METADATA_PATH = config.get('metadata.metadatapath', '/usr/lib/ckan/diffs/geo-metadata')
+    METADATA_DIR = 'geo-metadata'
 
     def info(self):
         '''
